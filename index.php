@@ -17,9 +17,28 @@ function limbo_deposit($user, $amount) {
 		':user' => $user
 	);
 
-	$result = $pdo->prepare('UPDATE `users` SET `balance` = `balance` + :amount WHERE `id` = :user');
+	$result = $pdo->prepare(<<<EOF
+UPDATE `users`
+SET `balance` = `balance` + :amount
+WHERE `id` = :user
+EOF
+		);
+
 	$result->execute($parameters);
-	$result = $pdo->prepare("INSERT INTO `balance_changes` (`user`, `amount`, `updated`) VALUES (:user, :amount, DATETIME('now'))");
+
+	$result = $pdo->prepare(<<<EOF
+INSERT INTO `balance_changes` (
+	`user`,
+	`amount`,
+	`updated`
+)
+VALUES (
+	:user,
+	:amount,
+	DATETIME('now')
+)
+EOF
+		);
 	$result->execute($parameters);
 
 	if ($user == $_SESSION['id']) {
@@ -30,7 +49,21 @@ function limbo_deposit($user, $amount) {
 function limbo_stock_part($item, $count, $user) {
 	global $pdo;
 
-	$result = $pdo->prepare("INSERT INTO `stock_changes` (`item`, `count`, `user`, `updated`) VALUES(:item, :count, :user, DATETIME('now'))");
+	$result = $pdo->prepare(<<<EOF
+INSERT INTO `stock_changes` (
+	`item`,
+	`count`,
+	`user`,
+	`updated`
+)
+VALUES (
+	:item,
+	:count,
+	:user,
+	DATETIME('now')
+)
+EOF
+		);
 
 	$result->execute(array(
 		':item' => $item,
@@ -107,7 +140,13 @@ if (array_key_exists('user', $_POST)) {
 
 	if ($email) {
 		if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-			$result = $pdo->prepare('SELECT * FROM `users` WHERE `email` = :email OR `name` = :user');
+			$result = $pdo->prepare(<<<EOF
+SELECT *
+FROM `users`
+WHERE `email` = :email
+	OR `name` = :user
+EOF
+				);
 
 			$result->execute(array(
 				':email' => $email,
@@ -127,14 +166,31 @@ if (array_key_exists('user', $_POST)) {
 				}
 			} elseif ($user) {
 				if (preg_match('/^[\w ]+$/', $user)) {
-					$result = $pdo->prepare("INSERT INTO `users` (`name`, `email`, `created`) VALUES (:user, :email, DATETIME('now'))");
+					$result = $pdo->prepare(<<<EOF
+INSERT INTO `users` (
+	`name`,
+	`email`,
+	`created`
+)
+VALUES (
+	:user,
+	:email,
+	DATETIME('now')
+)
+EOF
+						);
 
 					$result->execute(array(
 						':user' => $user,
 						':email' => $email
 					));
 
-					$result = $pdo->prepare('SELECT `id` FROM `users` WHERE `name` = :user');
+					$result = $pdo->prepare(<<<EOF
+SELECT `id`
+FROM `users`
+WHERE `name` = :user
+EOF
+						);
 
 					$result->execute(array(
 						':user' => $user
@@ -156,7 +212,13 @@ if (array_key_exists('user', $_POST)) {
 			$error = 'Invalid email address.';
 		}
 	} else {
-		$result = $pdo->prepare('SELECT * FROM `users` WHERE `name` = :user AND `id` <> 0');
+		$result = $pdo->prepare(<<<EOF
+SELECT *
+FROM `users`
+WHERE `name` = :user
+	AND `id` <> 0
+EOF
+			);
 
 		$result->execute(array(
 			':user' => $user
@@ -186,7 +248,14 @@ if (array_key_exists('purchase-item', $_POST)) {
 	$count = (int) $_POST['purchase-count'];
 	$initial = $count;
 	$total = 0;
-	$result = $pdo->prepare('SELECT * FROM `items` WHERE `name` = :item ORDER BY `price`');
+
+	$result = $pdo->prepare(<<<EOF
+SELECT *
+FROM `items`
+WHERE `name` = :item
+ORDER BY `price`
+EOF
+		);
 
 	$result->execute(array(
 		':item' => $name
@@ -194,7 +263,12 @@ if (array_key_exists('purchase-item', $_POST)) {
 
 	while ($count and $item = $result->fetch(PDO::FETCH_ASSOC)) {
 		if ($count < $item['count']) {
-			$update = $pdo->prepare('UPDATE `items` SET `count` = `count` - :count WHERE `id` = :id');
+			$update = $pdo->prepare(<<<EOF
+UPDATE `items`
+SET `count` = `count` - :count
+WHERE `id` = :id
+EOF
+				);
 
 			$update->execute(array(
 				':count' => $count,
@@ -206,7 +280,11 @@ if (array_key_exists('purchase-item', $_POST)) {
 			limbo_stock_part($item['id'], -$count, $_SESSION['id']);
 			$count = 0;
 		} else {
-			$update = $pdo->prepare('DELETE FROM `items` WHERE `id` = :id');
+			$update = $pdo->prepare(<<<EOF
+DELETE FROM `items`
+WHERE `id` = :id
+EOF
+				);
 
 			$update->execute(array(
 				':id' => $item['id']
@@ -235,7 +313,13 @@ if (array_key_exists('stock-item', $_POST)) {
 	$price = round(max($_POST['stock-price'], 0), 2);
 	$tax = (int) min(max($_POST['stock-tax'], 0), 99) / 100;
 	$description = htmlentities($_POST['stock-notes'], NULL, 'UTF-8');
-	$result = $pdo->prepare('SELECT * FROM `items` WHERE `name` = :item AND `user` = :user');
+	$result = $pdo->prepare(<<<EOF
+SELECT *
+FROM `items`
+WHERE `name` = :item
+	AND `user` = :user
+EOF
+		);
 
 	$result->execute(array(
 		':item' => $name,
@@ -243,9 +327,37 @@ if (array_key_exists('stock-item', $_POST)) {
 	));
 
 	if ($item = $result->fetch(PDO::FETCH_ASSOC)) {
-		$result = $pdo->prepare('UPDATE `items` SET `count` = `count` + :count, `price` = :price, `tax` = :tax, `description` = :description WHERE `name` = :item AND `user` = :user');
+		$result = $pdo->prepare(<<<EOF
+UPDATE `items`
+SET `count` = `count` + :count,
+	`price` = :price,
+	`tax` = :tax,
+	`description` = :description
+WHERE `name` = :item
+	AND `user` = :user
+EOF
+			);
 	} else {
-		$result = $pdo->prepare("INSERT INTO `items` (`name`, `count`, `user`, `price`, `tax`, `description`, `created`) VALUES (:item, :count, :user, :price, :tax, :description, DATETIME('now'))");
+		$result = $pdo->prepare(<<<EOF
+INSERT INTO `items` (
+	`name`,
+	`count`,
+	`user`,
+	`price`,
+	`tax`,
+	`description`,
+	`created`
+)
+VALUES (:item,
+	:count,
+	:user,
+	:price,
+	:tax,
+	:description,
+	DATETIME('now')
+)
+EOF
+			);
 	}
 
 	$result->execute(array(
@@ -257,7 +369,13 @@ if (array_key_exists('stock-item', $_POST)) {
 		':user' => $_SESSION['id']
 	));
 
-	$result = $pdo->prepare('SELECT `id` FROM `items` WHERE `name` = :item AND `user` = :user');
+	$result = $pdo->prepare(<<<EOF
+SELECT `id`
+FROM `items`
+WHERE `name` = :item
+AND `user` = :user
+EOF
+		);
 
 	$result->execute(array(
 		':item' => $name,
@@ -294,7 +412,17 @@ print_head('Limbo');
 		<script type="text/javascript">// <![CDATA
 			var items = [
 <?
-$result = $pdo->prepare('SELECT `name`, `count`, `price`, `description` FROM `items` ORDER BY `name`, `price`');
+$result = $pdo->prepare(<<<EOF
+SELECT `name`,
+	`count`,
+	`price`,
+	`description`
+FROM `items`
+ORDER BY `name`,
+	`price`
+EOF
+	);
+
 $result->execute();
 $items = array();
 
@@ -353,7 +481,13 @@ EOF;
 
 			var users = [
 <?
-$result = $pdo->prepare('SELECT `name` FROM `users` WHERE `id` <> 0');
+$result = $pdo->prepare(<<<EOF
+SELECT `name`
+FROM `users`
+WHERE `id` <> 0
+EOF
+	);
+
 $result->execute();
 
 while ($user = $result->fetch(PDO::FETCH_COLUMN)) {
@@ -508,7 +642,15 @@ if (!$_SESSION) {
 
 EOF;
 
-	$result = $pdo->prepare('SELECT * FROM `users` WHERE `balance` < -1 AND `id` <> 0 ORDER BY `balance`');
+	$result = $pdo->prepare(<<<EOF
+SELECT *
+FROM `users`
+WHERE `balance` < -1
+	AND `id` <> 0
+ORDER BY `balance`
+EOF
+		);
+
 	$result->execute();
 
 	while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
