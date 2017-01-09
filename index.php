@@ -783,7 +783,7 @@ EOF
 	));
 
 	while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-		$share = sprintf('$d $s at $%.2f', $row['count'], $row['name'], $row['price']);
+		$share = sprintf('%d %s at $%.2f', $row['count'], $row['name'], $row['price']);
 
 		echo <<<EOF
 				<tr>
