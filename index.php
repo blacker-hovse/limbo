@@ -764,6 +764,37 @@ EOF;
 					</div>
 				</div>
 			</form>
+			<h2>My Stock</h2>
+			<table>
+
+EOF;
+
+	$result = $pdo->prepare(<<<EOF
+SELECT `count`,
+	`name`,
+	`price`
+FROM `items`
+WHERE `user` = :user
+EOF
+		);
+
+	$result->execute(array(
+		':user' => $_SESSION['id']
+	));
+
+	while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+		echo <<<EOF
+				<tr>
+					<td>$row[count]</td>
+					<td>$row[name] at $row[price]</td>
+				</tr>
+
+EOF;
+	}
+
+	echo <<<EOF
+			</table>
+			</form>
 			<h2>Transaction Log</h2>
 			<table>
 
