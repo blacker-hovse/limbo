@@ -39,6 +39,7 @@ VALUES (
 )
 EOF
 		);
+
 	$result->execute($parameters);
 
 	if ($user == $_SESSION['id']) {
