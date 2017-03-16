@@ -254,7 +254,8 @@ if (array_key_exists('purchase-item', $_POST)) {
 SELECT *
 FROM `items`
 WHERE `name` = :item
-ORDER BY `price`
+ORDER BY `price`,
+	`created`
 EOF
 		);
 
