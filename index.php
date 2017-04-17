@@ -375,7 +375,7 @@ EOF
 SELECT `id`
 FROM `items`
 WHERE `name` = :item
-AND `user` = :user
+  AND `user` = :user
 EOF
     );
 
@@ -810,8 +810,7 @@ SELECT `items`.`name` AS `name`,
   NULL AS `amount`,
   `stock_changes`.`updated` AS `updated`
 FROM `stock_changes`
-  LEFT JOIN `items`
-    ON `stock_changes`.`item` = `items`.`id`
+LEFT JOIN `items` ON `stock_changes`.`item` = `items`.`id`
 WHERE `stock_changes`.`user` = :user
 UNION ALL SELECT NULL AS `name`,
   NULL AS `count`,
