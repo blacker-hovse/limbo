@@ -47,6 +47,10 @@ EOF
   }
 }
 
+function limbo_encode($str) {
+  return addcslashes(substr(json_encode($str), 1, -1), "'");
+}
+
 function limbo_stock_part($item, $count, $user) {
   global $pdo;
 
@@ -447,8 +451,8 @@ while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
 }
 
 foreach ($items as $i => $item) {
-  $name = addslashes($i);
-  $description = addslashes(substr($item['description'], 6));
+  $name = limbo_encode($i);
+  $description = limbo_encode(substr($item['description'], 6));
   $total = 0;
 
   echo <<<EOF
@@ -493,7 +497,7 @@ EOF
 $result->execute();
 
 while ($user = $result->fetch(PDO::FETCH_COLUMN)) {
-  $name = addslashes($user);
+  $name = limbo_encode($user);
 
   echo <<<EOF
         {
