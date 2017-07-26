@@ -42,7 +42,7 @@ EOF
 
   $result->execute($parameters);
 
-  if ($user == $_SESSION['id']) {
+  if (array_key_exists('id', $_SESSION) and $user == $_SESSION['id']) {
     $_SESSION['balance'] += $amount;
   }
 }
@@ -243,10 +243,15 @@ EOF
 }
 
 if (array_key_exists('donation', $_POST)) {
-  $amount = round(max($_POST['donation'], 0), 2);
-  limbo_deposit(0, -$amount);
-  $amount = money_format('%.2n', $amount);
-  $success = "Successfully recorded donation of $amount.";
+  $amount = round($_POST['donation'], 2);
+
+  if ($amount <= 0) {
+    $error = 'Donation must be positive.';
+  } else {
+    limbo_deposit(0, -$amount);
+    $amount = money_format('%.2n', $amount);
+    $success = "Successfully recorded donation of $amount.";
+  }
 }
 
 if (array_key_exists('purchase-item', $_POST)) {
