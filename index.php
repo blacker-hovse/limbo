@@ -48,7 +48,7 @@ EOF
 }
 
 function limbo_encode($str) {
-  return addcslashes(substr(json_encode($str), 1, -1), "'");
+  return addcslashes(substr(json_encode(blacker_encode($str)), 1, -1), "'");
 }
 
 function limbo_stock_part($item, $count, $user) {
@@ -161,13 +161,14 @@ EOF
       $row = $result->fetch(PDO::FETCH_ASSOC);
 
       if ($row) {
-        $name = htmlentities($row['name'], NULL, 'UTF-8');
-        $error = "User <b>$name</b> exists with this email address.";
+        $name = blacker_encode($row['name']);
 
         if ($row['id'] == 0) {
           $error = "Username <b>$name</b> disallowed.";
         } elseif ($row['name'] == $user) {
           $error = "User <b>$name</b> exists.";
+        } else {
+          $error = "User <b>$name</b> exists with this email address.";
         }
       } elseif ($user) {
         if (preg_match('/^[\w ]+$/', $user)) {
@@ -249,7 +250,7 @@ if (array_key_exists('donation', $_POST)) {
 }
 
 if (array_key_exists('purchase-item', $_POST)) {
-  $name = htmlentities($_POST['purchase-item'], NULL, 'UTF-8');
+  $name = blacker_encode($_POST['purchase-item']);
   $count = (int) $_POST['purchase-count'];
   $initial = $count;
   $total = 0;
@@ -264,7 +265,7 @@ EOF
     );
 
   $result->execute(array(
-    ':item' => $name
+    ':item' => $_POST['purchase-item']
   ));
 
   while ($count and $item = $result->fetch(PDO::FETCH_ASSOC)) {
@@ -314,11 +315,10 @@ EOF
 }
 
 if (array_key_exists('stock-item', $_POST)) {
-  $name = htmlentities($_POST['stock-item'], NULL, 'UTF-8');
+  $name = blacker_encode($_POST['stock-item']);
   $count = (int) $_POST['stock-count'];
   $price = round(max($_POST['stock-price'], 0), 2);
   $tax = (int) min(max($_POST['stock-tax'], 0), 99) / 100;
-  $description = htmlentities($_POST['stock-notes'], NULL, 'UTF-8');
   $result = $pdo->prepare(<<<EOF
 SELECT *
 FROM `items`
@@ -328,7 +328,7 @@ EOF
     );
 
   $result->execute(array(
-    ':item' => $name,
+    ':item' => $_POST['stock-item'],
     ':user' => $_SESSION['id']
   ));
 
@@ -370,8 +370,8 @@ EOF
     ':count' => $count,
     ':price' => $price,
     ':tax' => $tax,
-    ':description' => $description,
-    ':item' => $name,
+    ':description' => $_POST['stock-notes'],
+    ':item' => $_POST['stock-item'],
     ':user' => $_SESSION['id']
   ));
 
@@ -384,7 +384,7 @@ EOF
     );
 
   $result->execute(array(
-    ':item' => $name,
+    ':item' => $_POST['stock-item'],
     ':user' => $_SESSION['id']
   ));
 
@@ -660,7 +660,7 @@ EOF
   $result->execute();
 
   while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-    $name = htmlentities($row['name'], NULL, 'UTF-8');
+    $name = blacker_encode($row['name']);
     $balance = money_format('%.2n', -$row['balance']);
 
     echo <<<EOF
@@ -677,7 +677,7 @@ EOF;
 
 EOF;
 } else {
-  $name = htmlentities($_SESSION['name'], NULL, 'UTF-8');
+  $name = blacker_encode($_SESSION['name']);
   $balance = money_format('%.2n', abs($_SESSION['balance']));
   $payment = 0;
 
@@ -789,7 +789,7 @@ EOF
   ));
 
   while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-    $share = sprintf('%d %s at $%.2f', $row['count'], $row['name'], $row['price']);
+    $share = sprintf('%d %s at $%.2f', $row['count'], blacker_encode($row['name']), $row['price']);
 
     echo <<<EOF
         <tr>
@@ -840,10 +840,12 @@ EOF
         $action = sprintf('Credited $%.2f', $row['amount']);
       }
     } else {
+      $name = blacker_encode($row['name']);
+
       if ($row['count'] < 0) {
-        $action = sprintf('Purchased %d %s', -$row['count'], $row['name']);
+        $action = sprintf('Purchased %d %s', -$row['count'], $name);
       } else {
-        $action = sprintf('Stocked %d %s', $row['count'], $row['name']);
+        $action = sprintf('Stocked %d %s', $row['count'], $name);
       }
     }
 
