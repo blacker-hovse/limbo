@@ -48,7 +48,7 @@ EOF
 }
 
 function limbo_encode($str) {
-  return addcslashes(substr(json_encode(blacker_encode($str)), 1, -1), "'");
+  return addcslashes(substr(json_encode($str), 1, -1), "'");
 }
 
 function limbo_stock_part($item, $count, $user) {
