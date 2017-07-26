@@ -447,7 +447,7 @@ while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
   }
 
   $items[$row['name']]['prices'][$price] += $row['count'];
-  $items[$row['name']]['description'] .= '<br />' . $row['description'];
+  $items[$row['name']]['description'] .= '<br />' . blacker_encode($row['description']);
 }
 
 foreach ($items as $i => $item) {
