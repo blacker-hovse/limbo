@@ -257,88 +257,125 @@ if (array_key_exists('donation', $_POST)) {
 if (array_key_exists('purchase-item', $_POST)) {
   $name = blacker_encode($_POST['purchase-item']);
   $count = (int) $_POST['purchase-count'];
-  $initial = $count;
-  $total = 0;
 
-  $result = $pdo->prepare(<<<EOF
+  if (!$name) {
+    $error = ' Please provide an item name.';
+  }
+
+  if ($count <= 0) {
+    $error .= ' Quantity must be positive.';
+  }
+
+  if (!$error) {
+    $initial = $count;
+    $total = 0;
+
+    $result = $pdo->prepare(<<<EOF
 SELECT *
 FROM `items`
 WHERE `name` = :item
 ORDER BY `price`,
   `created`
 EOF
-    );
+      );
 
-  $result->execute(array(
-    ':item' => $_POST['purchase-item']
-  ));
+    $result->execute(array(
+      ':item' => $_POST['purchase-item']
+    ));
 
-  while ($count and $item = $result->fetch(PDO::FETCH_ASSOC)) {
-    if ($count < $item['count']) {
-      $update = $pdo->prepare(<<<EOF
+    while ($count and $item = $result->fetch(PDO::FETCH_ASSOC)) {
+      if ($count < $item['count']) {
+        $update = $pdo->prepare(<<<EOF
 UPDATE `items`
 SET `count` = `count` - :count
 WHERE `id` = :id
 EOF
-        );
+          );
 
-      $update->execute(array(
-        ':count' => $count,
-        ':id' => $item['id']
-      ));
+        $update->execute(array(
+          ':count' => $count,
+          ':id' => $item['id']
+        ));
 
-      $cost = $count * $item['price'];
-      $total += $cost;
-      limbo_stock_part($item['id'], -$count, $_SESSION['id']);
-      $count = 0;
-    } else {
-      $update = $pdo->prepare(<<<EOF
+        $cost = $count * $item['price'];
+        $total += $cost;
+        limbo_stock_part($item['id'], -$count, $_SESSION['id']);
+        $count = 0;
+      } else {
+        $update = $pdo->prepare(<<<EOF
 DELETE FROM `items`
 WHERE `id` = :id
 EOF
-        );
+          );
 
-      $update->execute(array(
-        ':id' => $item['id']
-      ));
+        $update->execute(array(
+          ':id' => $item['id']
+        ));
 
-      $cost = $item['count'] * $item['price'];
-      $total += $cost;
-      limbo_stock_part($item['id'], -$item['count'], $_SESSION['id']);
-      $count -= $item['count'];
+        $cost = $item['count'] * $item['price'];
+        $total += $cost;
+        limbo_stock_part($item['id'], -$item['count'], $_SESSION['id']);
+        $count -= $item['count'];
+      }
+
+      if ($item['user'] != $_SESSION['id']) {
+        $cost = round($cost * (1 - $item['tax']), 2);
+      }
+
+      limbo_deposit($item['user'], $cost);
     }
 
-    if ($item['user'] != $_SESSION['id']) {
-      $cost = round($cost * (1 - $item['tax']), 2);
-    }
+    limbo_deposit($_SESSION['id'], -$total);
+    $initial -= $count;
 
-    limbo_deposit($item['user'], $cost);
+    if ($initial) {
+      $success = "Successfully recorded purchase of $initial $name.";
+    } else {
+      $error = "Could not purchase $name.";
+    }
+  } else {
+    $error = substr($error, 1);
   }
-
-  limbo_deposit($_SESSION['id'], -$total);
-  $success = "Successfully recorded purchase of $initial $name.";
 }
 
 if (array_key_exists('stock-item', $_POST)) {
   $name = blacker_encode($_POST['stock-item']);
   $count = (int) $_POST['stock-count'];
-  $price = round(max($_POST['stock-price'], 0), 2);
-  $tax = (int) min(max($_POST['stock-tax'], 0), 99) / 100;
-  $result = $pdo->prepare(<<<EOF
+  $price = round($_POST['stock-price'], 2);
+  $tax = (int) $_POST['stock-tax'] / 100;
+
+  if (!$name) {
+    $error = ' Please provide an item name.';
+  }
+
+  if ($count <= 0) {
+    $error .= ' Quantity must be positive.';
+  }
+
+  if ($price <= 0) {
+    $error .= ' Price must be positive.';
+  }
+
+  if ($tax < 0 or $tax > 0.99) {
+    $error .= ' Tax must be between 0% and 99%.';
+  }
+
+  if (!$error) {
+    $result = $pdo->prepare(<<<EOF
 SELECT *
 FROM `items`
 WHERE `name` = :item
   AND `user` = :user
 EOF
-    );
+      );
 
-  $result->execute(array(
-    ':item' => $_POST['stock-item'],
-    ':user' => $_SESSION['id']
-  ));
+    $result->execute(array(
+      ':item' => $_POST['stock-item'],
+      ':user' => $_SESSION['id']
+    ));
 
-  if ($item = $result->fetch(PDO::FETCH_ASSOC)) {
-    $result = $pdo->prepare(<<<EOF
+    if ($item = $result->fetch(PDO::FETCH_ASSOC)) {
+      $result = $pdo->prepare(<<<EOF
 UPDATE `items`
 SET `count` = `count` + :count,
   `price` = :price,
@@ -347,9 +384,9 @@ SET `count` = `count` + :count,
 WHERE `name` = :item
   AND `user` = :user
 EOF
-      );
-  } else {
-    $result = $pdo->prepare(<<<EOF
+        );
+    } else {
+      $result = $pdo->prepare(<<<EOF
 INSERT INTO `items` (
   `name`,
   `count`,
@@ -368,49 +405,62 @@ VALUES (:item,
   DATETIME('now')
 )
 EOF
-      );
-  }
+        );
+    }
 
-  $result->execute(array(
-    ':count' => $count,
-    ':price' => $price,
-    ':tax' => $tax,
-    ':description' => $_POST['stock-notes'],
-    ':item' => $_POST['stock-item'],
-    ':user' => $_SESSION['id']
-  ));
+    $result->execute(array(
+      ':count' => $count,
+      ':price' => $price,
+      ':tax' => $tax,
+      ':description' => $_POST['stock-notes'],
+      ':item' => $_POST['stock-item'],
+      ':user' => $_SESSION['id']
+    ));
 
-  $result = $pdo->prepare(<<<EOF
+    $result = $pdo->prepare(<<<EOF
 SELECT `id`
 FROM `items`
 WHERE `name` = :item
   AND `user` = :user
 EOF
-    );
+      );
 
-  $result->execute(array(
-    ':item' => $_POST['stock-item'],
-    ':user' => $_SESSION['id']
-  ));
+    $result->execute(array(
+      ':item' => $_POST['stock-item'],
+      ':user' => $_SESSION['id']
+    ));
 
-  limbo_stock_part($result->fetch(PDO::FETCH_COLUMN), $count, $_SESSION['id']);
-  $success = "Successfully recorded stock of $count $name.";
+    limbo_stock_part($result->fetch(PDO::FETCH_COLUMN), $count, $_SESSION['id']);
+    $success = "Successfully recorded stock of $count $name.";
+  } else {
+    $error = substr($error, 1);
+  }
 }
 
 if (array_key_exists('deposit-amount', $_POST)) {
-  $amount = round(max($_POST['deposit-amount'], 0), 2);
-  limbo_deposit($_SESSION['id'], $amount);
-  limbo_deposit(0, -$amount);
-  $amount = money_format('%.2n', $amount);
-  $success = "Successfully recorded deposit of $amount.";
+  $amount = round($_POST['deposit-amount'], 2);
+
+  if ($amount <= 0) {
+    $error = 'Deposit must be positive.';
+  } else {
+    limbo_deposit($_SESSION['id'], $amount);
+    limbo_deposit(0, -$amount);
+    $amount = money_format('%.2n', $amount);
+    $success = "Successfully recorded deposit of $amount.";
+  }
 }
 
 if (array_key_exists('withdrawal-amount', $_POST)) {
-  $amount = round(max($_POST['withdrawal-amount'], 0), 2);
-  limbo_deposit($_SESSION['id'], -$amount);
-  limbo_deposit(0, $amount);
-  $amount = money_format('%.2n', $amount);
-  $success = "Successfully recorded withdrawal of $amount.";
+  $amount = round($_POST['withdrawal-amount'], 2);
+
+  if ($amount <= 0) {
+    $error = 'Withdrawal must be positive.';
+  } else {
+    limbo_deposit($_SESSION['id'], -$amount);
+    limbo_deposit(0, $amount);
+    $amount = money_format('%.2n', $amount);
+    $success = "Successfully recorded withdrawal of $amount.";
+  }
 }
 ?><!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
