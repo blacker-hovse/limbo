@@ -469,7 +469,7 @@ if (array_key_exists('withdrawal-amount', $_POST)) {
 print_head('Limbo');
 ?>    <link rel="stylesheet" href="/lib/css/selectize.css" />
     <script type="text/javascript" src="/lib/js/selectize.min.js"></script>
-    <script type="text/javascript">// <![CDATA
+    <script type="text/javascript">// <![CDATA[
       var items = [
 <?
 $result = $pdo->prepare(<<<EOF
